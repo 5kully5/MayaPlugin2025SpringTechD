@@ -2,7 +2,7 @@
 
 ## Limb Rigger
 
-<img src="./assets/">
+<img src="./assets/Rigger.png" width=400>
 
 [Limb Rigger]("./src/LimbRigger.py")
 
