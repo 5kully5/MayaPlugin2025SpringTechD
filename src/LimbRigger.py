@@ -1,23 +1,15 @@
+import importlib
+import MayaUtils
+importlib.reload(MayaUtils)
+
+from MayaUtils import MayaWindow
 from PySide2.QtGui import QColor
-from PySide2.QtWidgets import QColorDialog, QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox, QPushButton, QSlider, QVBoxLayout, QWidget # type: ignore
+from PySide2.QtWidgets import QColorDialog, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QSlider, QVBoxLayout, QWidget # type: ignore
 from PySide2.QtCore import Qt, Signal
 from maya.OpenMaya import MVector
-import maya.OpenMayaUI as omui
-import maya.mel as mel
-import shiboken2
-
-#calling all importers and widgets
-
-def GetMayaMainWindow()->QMainWindow:
-    mainWindow = omui.MQtUtil.mainWindow()
-    return shiboken2.wrapInstance(int(mainWindow), QMainWindow) #telling to make another maya window
-
-def DeleteWidgetWithName(name):
-    for widget in GetMayaMainWindow().findChildren(QWidget, name):  #adding new window and deleting new window when reseted
-        widget.deleteLater()
-
 import maya.cmds as mc
-    
+import maya.mel as mel
+
 class LimbRigger:
     def __init__(self):
         self.root = ""
@@ -129,19 +121,7 @@ class LimbRigger:
         mc.setAttr(topGrpName+".overrideEnable", 1)
         mc.setAttr(topGrpName+".overrideRGBColors", 1)
         mc.setAttr(topGrpName+".overrideRGBColors", self.ControllerColor[0], self.ControllerColor[1], self.ControllerColor[2], type="double3")
-        
 
-class MayaWindow(QWidget):
-    def __init__(self):
-        super().__init__(parent = GetMayaMainWindow())
-        DeleteWidgetWithName(self.GetWidgetUniqueName())
-        self.setWindowFlags(Qt.WindowType.Window)
-        self.setObjectName(self.GetWidgetUniqueName())
-        #maya window being able to show instances of stuff
-    
-    def GetWidgetUniqueName(self):
-        return "dsfsdfsdfisdsdhjd1234315315fi9"
-    
 class ColorPicker(QWidget):
     colorChanged = Signal(QColor)
     def __init__(self):
@@ -197,13 +177,27 @@ class LimbRiggerWidget(MayaWindow):
         self.masterLayout.addLayout(ctrlSizeLayout)
 
         colorPicker = ColorPicker()
-        colorPicker.colorChanged.connect(self.ColorPickerChange)
+        colorPicker.colorChanged.connect(self.UpdateRig)
         self.masterLayout.addWidget(colorPicker)
+
+        UpdateColor = QPushButton("Update Rig")
+        UpdateColor.clicked.connect(self.UpdateRig)
+        self.masterLayout.addWidget(UpdateColor)
 
         rigLimbBtn = QPushButton("Rig Limb")
         rigLimbBtn.clicked.connect(lambda : self.rigger.RigLimb())
         self.masterLayout.addWidget(rigLimbBtn)
         #returning that the limb has been rigger 
+
+    def UpdateRig(self):
+        ColorUpdate = self.ColorPickerChange
+        try:
+            if self.rigger:
+                ColorUpdate()
+        except Exception as a:
+            print(self, "error", f"[{a}]")
+        pass
+        
 
     def ColorPickerChange(self, newColor: QColor):
         self.rigger.ControllerColor[0] = newColor.redF()
@@ -222,7 +216,6 @@ class LimbRiggerWidget(MayaWindow):
             QMessageBox.critical(self, "error", f"[{e}]")
         #button that the user will press in order to rig the bones
 
+
 LimbRiggerWidget = LimbRiggerWidget()
 LimbRiggerWidget.show()
-
-GetMayaMainWindow()
