@@ -200,10 +200,22 @@ class LimbRiggerWidget(MayaWindow):
         colorPicker.colorChanged.connect(self.ColorPickerChange)
         self.masterLayout.addWidget(colorPicker)
 
+        UpdateColor = QPushButton("Update Rig")
+        UpdateColor.clicked.connect(self.UpdateRig)
+        self.masterLayout.addWidget(UpdateColor)
+
         rigLimbBtn = QPushButton("Rig Limb")
         rigLimbBtn.clicked.connect(lambda : self.rigger.RigLimb())
         self.masterLayout.addWidget(rigLimbBtn)
         #returning that the limb has been rigger 
+
+    def UpdateRig(self, newColor: QColor):
+        try:
+            self.rigger.ControllerColor = newColor
+        except Exception as a:
+            print(self, "error", f"[{a}]")
+        pass
+        
 
     def ColorPickerChange(self, newColor: QColor):
         self.rigger.ControllerColor[0] = newColor.redF()
