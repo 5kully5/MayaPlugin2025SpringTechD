@@ -197,7 +197,7 @@ class LimbRiggerWidget(MayaWindow):
         self.masterLayout.addLayout(ctrlSizeLayout)
 
         colorPicker = ColorPicker()
-        colorPicker.colorChanged.connect(self.ColorPickerChange)
+        colorPicker.colorChanged.connect(self.UpdateRig)
         self.masterLayout.addWidget(colorPicker)
 
         UpdateColor = QPushButton("Update Rig")
@@ -209,9 +209,11 @@ class LimbRiggerWidget(MayaWindow):
         self.masterLayout.addWidget(rigLimbBtn)
         #returning that the limb has been rigger 
 
-    def UpdateRig(self, newColor: QColor):
+    def UpdateRig(self):
+        ColorUpdate = self.ColorPickerChange
         try:
-            self.rigger.ControllerColor = newColor
+            if self.rigger:
+                ColorUpdate()
         except Exception as a:
             print(self, "error", f"[{a}]")
         pass
@@ -233,6 +235,7 @@ class LimbRiggerWidget(MayaWindow):
         except Exception as e:
             QMessageBox.critical(self, "error", f"[{e}]")
         #button that the user will press in order to rig the bones
+
 
 LimbRiggerWidget = LimbRiggerWidget()
 LimbRiggerWidget.show()
