@@ -9,7 +9,7 @@ def IsMesh(obj):
     shapes = mc.listRelatives(obj, s=True)
     if not shapes:
         return False
-    
+        
     for s in shapes:
         if mc.objectType(s) == "mesh":
             return True
