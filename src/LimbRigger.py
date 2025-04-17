@@ -216,6 +216,12 @@ class LimbRiggerWidget(MayaWindow):
             QMessageBox.critical(self, "error", f"[{e}]")
         #button that the user will press in order to rig the bones
 
+<<<<<<< HEAD
+=======
+
+LimbRiggerWidget = LimbRiggerWidget()
+LimbRiggerWidget.show()
+>>>>>>> bc8926319d923e1a19a8884a3a22dfd16159466e
 
 LimbRiggerWidget = LimbRiggerWidget()
 LimbRiggerWidget.show()
