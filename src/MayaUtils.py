@@ -1,4 +1,3 @@
-
 from PySide2.QtWidgets import  QMainWindow, QWidget # type: ignore
 from PySide2.QtCore import Qt
 import maya.OpenMayaUI as omui
@@ -71,6 +70,5 @@ class MayaWindow(QWidget):
     
     def GetWidgetUniqueName(self):
         return "dsfsdfsdfisdsdhjd1234315315fi9"
-    
 
 GetMayaMainWindow().show
