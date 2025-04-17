@@ -33,15 +33,52 @@ class ProxyGenerator:
             return
         self.skin = skin[0]
         self.jnts = jnts
-        print(f"found model {self.model} with skin {self.skin} and joints: {self.jnts}")
+        print(f"found model {self.model} with skin {self.skin} and joints: {self.jnts}, {len(self.jnts)}")
 
         jntVertDict = self.GenerateJntVertsDict()
         chunks = []
         ctrls = []
         for jnt, verts in jntVertDict.items():
             newChunk = self.CreateProxyModleForJntsAndVerts(jnt, verts)
+            print(f"new chunk for jnt {jnt} is {newChunk}")
+            if not newChunk:
+                continue
+
+            newSkinCluster = mc.skinCluster(self.jnts, newChunk)[0]
+            mc.copySkinWeights(ss=self.skin, ds=newSkinCluster, nm=True, sa="closestPoint", ia="closestJoint")
+            chunks.append(newChunk)
+
+            ctrlName = "ac_" + jnt + "_proxy"
+            mc.spaceLocator(n=ctrlName)
+            ctrlGrpName = ctrlName + "_grp"
+            mc.group(ctrlName, n=ctrlGrpName)
+            mc.matchTransform(ctrlGrpName, jnt)
+
+            visibilityAttr = "vis"
+            mc.addAttr(ctrlName, ln=visibilityAttr, min=0, max=1, dv=1, k=True)
+            mc.connectAttr(ctrlName + "." + visibilityAttr, newChunk + ".v")
+            ctrls.append(ctrlGrpName)
+
+        proxyTopGrp = self.model + "_proxy_grp"
+        mc.group(chunks, n=proxyTopGrp)
+
+        ctrlTopGrp = "ac_"+ self.model + "_proxy_grp"
+        mc.group(ctrls, n=ctrlTopGrp)
+
+        globalProxyCtrl = "ac_" + self.model + "_proxy_global"
+        mc.circle(n=globalProxyCtrl, r=20)
+
+        mc.parent(proxyTopGrp, globalProxyCtrl)
+        mc.parent(ctrlTopGrp, globalProxyCtrl)
+
+        mc.setAttr(proxyTopGrp + ".inheritsTransforms", 0)
+
+        mc.addAttr(globalProxyCtrl, ln="vis", min=0, max=1, k=True, dv=1)
+        mc.connectAttr(globalProxyCtrl + ".vis", proxyTopGrp+".v")
+
 
     def CreateProxyModleForJntsAndVerts(self, jnt, verts):
+        print(f"{jnt} is influencing {verts}")
         if not verts:
             return None
         
@@ -52,6 +89,7 @@ class ProxyGenerator:
         for face in faces:
             FaceNames.add(face.replace(self.model, ""))
 
+        print(f"{jnt} has faces: {faces}")
         dup = mc.duplicate(self.model)[0]
         AllDupFaces = mc.ls(f"{dup}.f[*]", fl=True)
         facesToDelete = []
@@ -80,14 +118,14 @@ class ProxyGenerator:
 
     def GetJntWithMaxInfuence(self, vert, skin):
         weights = mc.skinPercent(skin, vert, q=True, v=True)
-        jnts = mc.skinBindCtx(skin, vert, q=True, t=None)
+        jnts = mc.skinPercent(skin, vert, q=True, t=None)
 
         maxWeightIndex = 0
         maxWeight = weights[0]
         for i in range(1, len(weights)):
             if weights[i] > maxWeight:
-                maxWeight = weights[1]
-                maxWeightIndex = 1
+                maxWeight = weights[i]
+                maxWeightIndex = i
 
         return jnts[maxWeightIndex]
 

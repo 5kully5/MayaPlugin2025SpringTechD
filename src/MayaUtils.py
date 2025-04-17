@@ -32,13 +32,14 @@ def GetallConnectionsIn(obj, nextFunc, filter = None):
     allFound = set()
     nexts = nextFunc(obj)
     searchDepth = 100
-    while next in nexts and searchDepth > 0:
+    while nexts and searchDepth > 0:
         searchDepth -= 1
-        allFound.add(next)
+        for next in nexts:
+            allFound.add(next)
 
-    nexts = nextFunc(next)
-    if next:
-        next = [x for x in nexts if x not in allFound]
+        nexts = nextFunc(nexts)
+        if nexts:
+            nexts = [x for x in nexts if x not in allFound]
 
     if not filter:
         return list(allFound)
@@ -47,6 +48,8 @@ def GetallConnectionsIn(obj, nextFunc, filter = None):
     for found in allFound:
         if filter(found):
             filtered.append(found)
+
+    return filtered
 
 def GetMayaMainWindow()->QMainWindow:
     mainWindow = omui.MQtUtil.mainWindow()
@@ -70,4 +73,4 @@ class MayaWindow(QWidget):
         return "dsfsdfsdfisdsdhjd1234315315fi9"
     
 
-GetMayaMainWindow()
+GetMayaMainWindow().show
