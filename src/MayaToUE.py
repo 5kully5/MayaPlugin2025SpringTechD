@@ -115,6 +115,14 @@ class AnimClipWidget(MayaWindow):
         maxFrameLibelEdit.textChanged.connect(self.maxFrameChange)
         self.masterlayout.addWidget(maxFrameLibelEdit)
 
+        setRangeBtn = QPushButton("[-]")
+        setRangeBtn.clicked.connect(self.setRangeBtnClicked)
+        self.masterlayout.addWidget(setRangeBtn)
+
+    def setRangeBtnClicked(self):
+        mc.playbackOptions(e=True, min= self.animClip.frameMin, max = self.animClip.frameMax)
+        mc.playbackOptions(e=True, ast= self.animClip.frameMin, aet = self.animClip.frameMax)
+
     def maxFrameChange(self, newVal):
         self.animClip.frameMax = int(newVal)
 
