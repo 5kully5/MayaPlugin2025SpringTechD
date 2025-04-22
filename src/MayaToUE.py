@@ -25,6 +25,10 @@ class MayaToUE:
         self.animations : list[AnimClip] = []
         self.fileName = ""
         self.saveDif = ""
+    
+    def AddNewAnimClip(self):
+        self.animations.append(AnimClip())
+        return self.animations[-1]
 
     def AddSelectedMeshes(self):
         selection = mc.ls(sl=True)
@@ -49,14 +53,6 @@ class MayaToUE:
             currentRootPos = mc.xform(self.rootJnt, q=True, ws=True, t=True)
             if currentRootPos[0] == 0 and currentRootPos[1] == 0 and currentRootPos[2] == 0:
                     raise Exception("Current rot joint is at origin already, no need to make a new one")
-            
-        self.meshList = QListWidget()
-        self.masterlayout.addWidget(self.meshList)
-        self.meshList.setMaximumHeight(100)
-
-        addMeshesBtn = QPushButton("Add Meshes")
-        addMeshesBtn.clicked.connect(self.AddMeshesBtnClicked)
-        self.masterlayout.addWidget(addMeshesBtn)
         
     @TryAction
     def AddMeshesBtnClicked(self):
@@ -78,7 +74,7 @@ class MayaToUE:
         
         self.root = selection[0]
 
-class AnimClipWidget(MayaWindow):
+class AnimClipWidget(QWidget):
     def __init__(self, animClip: AnimClip):
         super().__init__()
         self.animClip = animClip
@@ -166,6 +162,33 @@ class MayaToUEWidget(MayaWindow):
         addRootJntBtn.clicked.connect(self.AddRootJntBtnClicked)
         self.masterLayout.addWidget(addRootJntBtn)
 
+        self.meshList = QListWidget()
+        self.masterLayout.addWidget(self.meshList)
+        self.meshList.setMaximumHeight(100)
+
+        addMeshesBtn = QPushButton("Add Meshes")
+        addMeshesBtn.clicked.connect(self.AddMeshesBtnClicked)
+        self.masterLayout.addWidget(addMeshesBtn)
+
+        addAnimEntryBtn = QPushButton("Add Animation Clip")
+        addAnimEntryBtn.clicked.connect(self.addAnimEntryBtnClicked)
+        self.masterLayout.addWidget(addAnimEntryBtn)
+
+        self.animClipEntryLayout = QVBoxLayout()
+        self.masterLayout.addLayout(self.animClipEntryLayout)
+
+    @TryAction
+    def addAnimEntryBtnClicked(self):
+        newAnimClip = self.mayaToUE.AddNewAnimClip()
+        newAnimClipWidget = AnimClipWidget(newAnimClip)
+        self.animClipEntryLayout.addWidget(newAnimClipWidget)
+
+    @TryAction
+    def AddMeshesBtnClicked(self):
+        self.mayaToUE.AddSelectedMeshes()
+        self.meshList.clear()
+        self.meshList.addItems(self.mayaToUE.models)
+
     @TryAction
     def AddRootJntBtnClicked(self):
         self.mayaToUE.AddRootJnt()
@@ -176,5 +199,4 @@ class MayaToUEWidget(MayaWindow):
             self.mayaToUE.setSelectedJntAsRoot
             self.rootjntText.setText(self.mayaToUE.rootJnt)
 
-#MayaToUEWidget().show()
-AnimClipWidget(AnimClip()).show()
+MayaToUEWidget().show()
