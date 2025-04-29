@@ -10,7 +10,8 @@ def TryAction(actionFunc):
         try:
             actionFunc(*args, **kwargs)
         except Exception as e:
-            QMessageBox().critical(None, "Error", f"{e}")
+            QMessageBox().critical(None, "Error!", f"{e}")
+
     return wrapper
 
 class AnimClip:
@@ -20,6 +21,7 @@ class AnimClip:
         self.frameMax = mc.playbackOptions(q=True, max=True)
         self.shouldExport = True
 
+
 class MayaToUE:
     def __init__(self):
         self.rootJnt = ""
@@ -28,66 +30,106 @@ class MayaToUE:
         self.fileName = ""
         self.saveDir = ""
 
-    def GetSkelatalMeshSavePath(self):
+    def SendToUnreal(self):
+        #save the files
+
+        allJnts = []
+        allJnts.append(self.rootJnt)
+        children = mc.listRelatives(self.rootJnt, c=True, ad=True, type="joint")
+        if children:
+            allJnts.extend(children)
+        
+        allMeshes = self.models
+        allObjectToExport = allJnts + list(allMeshes)
+
+        mc.select(allObjectToExport, r=True)
+        skeletalMeshExportPath = self.GetSkeletalMeshSavePath()
+
+        mc.FBXResetExport() # reset all the settings
+        mc.FBXExportSmoothingGroups("-v", True)
+        mc.FBXExportInputConnections("-v", False)
+
+        # -f means the file name, -s means export selection, -ea means export animation
+        mc.FBXExport('-f', skeletalMeshExportPath, '-s', True, '-ea', False)
+
+        if self.animations:
+            mc.FBXExportBakeComplexAnimation('-v', True)
+
+            os.makedirs(os.path.join(self.saveDir, "animations"), exist_ok=True)
+
+            for animClip in self.animations:
+                if not animClip.shouldExport:
+                    continue
+
+                animExportPath= self.GetSavePathForAnimClip(animClip)
+
+                startFrame = animClip.frameMin
+                endFrame = animClip.frameMax
+
+                mc.FBXExportBakeComplexStart('-v', startFrame)
+                mc.FBXExportBakeComplexEnd('-v', endFrame)
+                mc.FBXExportBakeComplexStep('-v', 1)
+
+                mc.playbackOptions(e=True, min=startFrame, max=endFrame)
+
+                mc.FBXExport('-f', animExportPath, '-s', True, '-ea', True)
+
+
+    def GetSkeletalMeshSavePath(self):
         savePath = os.path.join(self.saveDir, self.fileName + ".fbx")
         return os.path.normpath(savePath)
-    
+
     def GetSavePathForAnimClip(self, animClip: AnimClip):
         savePath = os.path.join(self.saveDir, "animations", self.fileName + animClip.subfix + ".fbx")
         return os.path.normpath(savePath)
 
-    def RemoveAnimClip(self):
-        self.animations.remove(AnimClip())
-        print(f"removed anim clip, new we have :{len(self.animations)} clips")
+    def RemoveAnimClip(self, animCilp: AnimClip):
+        self.animations.remove(animCilp)
+        print(f"removed anim clip, now have: {len(self.animations)} left")
     
     def AddNewAnimClip(self):
         self.animations.append(AnimClip())
-        print(f"added anim clip, new we have :{len(self.animations)} clips")
+        print(f"added anim clip, now we have:{len(self.animations)} clips")
         return self.animations[-1]
 
     def AddSelectedMeshes(self):
         selection = mc.ls(sl=True)
 
         if not selection:
-            raise Exception("No Mesh Seleted, please select all meshes of your rig")
-        
+            raise Exception("No Mesh Selected, please select all the meshes of your rig")
+
         meshes = []
         for sel in selection:
             if IsMesh(sel):
-                self.append(sel)
+                meshes.append(sel)
+
         if len(meshes) == 0:
-            raise Exception("No Mesh Seleted, please select all meshes of your rig")
-        
+            raise Exception("No Mesh Selected, please select all the meshes of your rig")
+
         self.models = meshes
 
     def AddRootJoint(self):
-        if not self.rootJnt:
+        if not self.rootJnt:   
             raise Exception("No Root Joint Assigned, please set the root joint of your rig first")
-        
+
         if mc.objExists(self.rootJnt):
             currentRootPos = mc.xform(self.rootJnt, q=True, ws=True, t=True)
             if currentRootPos[0] == 0 and currentRootPos[1] == 0 and currentRootPos[2] == 0:
-                    raise Exception("Current rot joint is at origin already, no need to make a new one")
+                raise Exception("Current root joint is at origin already, no need to make a new one!")
         
-    @TryAction
-    def AddMeshesBtnClicked(self):
-        self.mayaToUE.AddSelectedMeshes()
-        self.meshList.clear()
-        self.meshList.addItems(self.mayaToUE.models)
-            
         mc.select(cl=True)
-        rootJntName = self.rootJnt + "_root"
+        rootJntName = self.rootJnt + "_root" 
         mc.joint(n=rootJntName)
         mc.parent(self.rootJnt, rootJntName)
         self.rootJnt = rootJntName
-            
 
-    def setSelectedJntAsRoot(self):
+
+    def SetSelectedJointAsRoot(self):
         selection = mc.ls(sl=True, type="joint")
         if not selection:
-            raise Exception("Wrong Selection please select the roon joint of the rig")
-        
-        self.root = selection[0]
+            raise Exception("Wrong Selection please select the root joint of your rig!")
+
+        self.rootJnt = selection[0]
 
 class AnimClipWidget(QWidget):
     animClipRemoved = Signal(AnimClip)
@@ -95,87 +137,87 @@ class AnimClipWidget(QWidget):
     def __init__(self, animClip: AnimClip):
         super().__init__()
         self.animClip = animClip
-        self.masterlayout = QHBoxLayout()
-        self.setLayout(self.masterlayout)
+        self.masterLayout = QHBoxLayout()
+        self.setLayout(self.masterLayout)        
 
-        shouldExportCheckBox = QCheckBox()
-        shouldExportCheckBox.setChecked(self.animClip.shouldExport)
-        self.masterlayout.addWidget(shouldExportCheckBox)
-        shouldExportCheckBox.toggled.connect(self.ShouldExportCheckboxToggled)
+        shouldExportCheckbox = QCheckBox()
+        shouldExportCheckbox.setChecked(self.animClip.shouldExport)
+        self.masterLayout.addWidget(shouldExportCheckbox)
+        shouldExportCheckbox.toggled.connect(self.ShouldExportCheckboxToggled)
 
-        subfixLable = QLabel("SubFix: ")
-        self.masterlayout.addWidget(subfixLable)
+        subfixLabel = QLabel("Subfix: ")
+        self.masterLayout.addWidget(subfixLabel)
 
         subfixLineEdit = QLineEdit()
         subfixLineEdit.setValidator(QRegExpValidator("\w+"))
         subfixLineEdit.setText(self.animClip.subfix)
-        subfixLineEdit.textChanged.connect(self.SubfixTextChange)
-        self.masterlayout.addWidget(subfixLineEdit)
+        subfixLineEdit.textChanged.connect(self.SubfixTextChanged)
+        self.masterLayout.addWidget(subfixLineEdit)
 
         minFrameLabel = QLabel("Min: ")
-        self.masterlayout.addWidget(minFrameLabel)
-        minFrameLibelEdit = QLineEdit()
-        minFrameLibelEdit.setValidator(QIntValidator())
-        minFrameLibelEdit.setText(str(int(self.animClip.frameMin)))
-        minFrameLibelEdit.textChanged.connect(self.minFrameChange)
-        self.masterlayout.addWidget(minFrameLibelEdit)
+        self.masterLayout.addWidget(minFrameLabel)
+        minFrameLineEdit = QLineEdit()
+        minFrameLineEdit.setValidator(QIntValidator())
+        minFrameLineEdit.setText(str(int(self.animClip.frameMin)))
+        minFrameLineEdit.textChanged.connect(self.MinFrameChanged)
+        self.masterLayout.addWidget(minFrameLineEdit)
 
         maxFrameLabel = QLabel("Max: ")
-        self.masterlayout.addWidget(maxFrameLabel)
-        maxFrameLibelEdit = QLineEdit()
-        maxFrameLibelEdit.setValidator(QIntValidator())
-        maxFrameLibelEdit.setText(str(int(self.animClip.frameMax)))
-        maxFrameLibelEdit.textChanged.connect(self.maxFrameChange)
-        self.masterlayout.addWidget(maxFrameLibelEdit)
+        self.masterLayout.addWidget(maxFrameLabel)
+        maxFrameLineEdit = QLineEdit()
+        maxFrameLineEdit.setValidator(QIntValidator())
+        maxFrameLineEdit.setText(str(int(self.animClip.frameMax)))
+        maxFrameLineEdit.textChanged.connect(self.MaxFrameChanged)
+        self.masterLayout.addWidget(maxFrameLineEdit)
 
         setRangeBtn = QPushButton("[-]")
-        setRangeBtn.clicked.connect(self.setRangeBtnClicked)
-        self.masterlayout.addWidget(setRangeBtn)
+        setRangeBtn.clicked.connect(self.SetRangeBtnClicked)
+        self.masterLayout.addWidget(setRangeBtn)
 
         deleteBtn = QPushButton("X")
         deleteBtn.clicked.connect(self.DeleteBtnClicked)
-        self.masterlayout.addWidget(deleteBtn)
+        self.masterLayout.addWidget(deleteBtn)
 
     def DeleteBtnClicked(self):
         self.animClipRemoved.emit(self.animClip)
         self.deleteLater()
 
-    def setRangeBtnClicked(self):
-        mc.playbackOptions(e=True, min= self.animClip.frameMin, max = self.animClip.frameMax)
-        mc.playbackOptions(e=True, ast= self.animClip.frameMin, aet = self.animClip.frameMax)
+    def SetRangeBtnClicked(self):
+        mc.playbackOptions(e=True, min = self.animClip.frameMin, max = self.animClip.frameMax)
+        mc.playbackOptions(e=True, ast = self.animClip.frameMin, aet = self.animClip.frameMax)
 
-    def maxFrameChange(self, newVal):
+    def MaxFrameChanged(self, newVal):
         self.animClip.frameMax = int(newVal)
 
-    def minFrameChange(self, newVal):
+    def MinFrameChanged(self, newVal):
         self.animClip.frameMin = int(newVal)
 
-    def SubfixTextChange(self, newText):
+    def SubfixTextChanged(self, newText):
         self.animClip.subfix = newText
         self.animClipSubfixChange.emit(newText)
 
     def ShouldExportCheckboxToggled(self):
         self.animClip.shouldExport = not self.animClip.shouldExport
-
+    
 class MayaToUEWidget(MayaWindow):
     def GetWidgetUniqueName(self):
-        return "MayaToUEWidgetJL4172025407"
-    
+        return "MayaToUEWigetJL4172025407"
+
     def __init__(self):
         super().__init__()
         self.mayaToUE = MayaToUE()
 
-        self.setWindowTitle("Maya To UE")
+        self.setWindowTitle("Maya to UE")
         self.masterLayout = QVBoxLayout()
         self.setLayout(self.masterLayout)
 
-        self.rootjntText = QLineEdit()
-        self.rootjntText.setEnabled(False)
-        self.masterLayout.addWidget(self.rootjntText)
+        self.rootJntText = QLineEdit()
+        self.rootJntText.setEnabled(False)
+        self.masterLayout.addWidget(self.rootJntText)
 
-        setSelectedASRootJntBtn = QPushButton("Set Root Joint")
-        setSelectedASRootJntBtn.clicked.connect(self.setSelectedAsRootJntBtnClicked)
-        self.masterLayout.addWidget(setSelectedASRootJntBtn)
+        setSelectedAsRootJntBtn = QPushButton("Set Root Joint")
+        setSelectedAsRootJntBtn.clicked.connect(self.SetSelectedAsRootJntBtnClicked)
+        self.masterLayout.addWidget(setSelectedAsRootJntBtn)
 
         addRootJntBtn = QPushButton("Add Root Joint")
         addRootJntBtn.clicked.connect(self.AddRootJntBtnClicked)
@@ -190,7 +232,7 @@ class MayaToUEWidget(MayaWindow):
         self.masterLayout.addWidget(addMeshesBtn)
 
         addAnimEntryBtn = QPushButton("Add Animation Clip")
-        addAnimEntryBtn.clicked.connect(self.addAnimEntryBtnClicked)
+        addAnimEntryBtn.clicked.connect(self.AddAnimEntryBtnClicked)
         self.masterLayout.addWidget(addAnimEntryBtn)
 
         self.animClipEntryLayout = QVBoxLayout()
@@ -203,7 +245,7 @@ class MayaToUEWidget(MayaWindow):
         self.fileNameLineEdit = QLineEdit()
         self.fileNameLineEdit.setFixedWidth(80)
         self.fileNameLineEdit.setValidator(QRegExpValidator("\w+"))
-        self.fileNameLineEdit.textChanged.connect(self.fileNameLineEditChange)
+        self.fileNameLineEdit.textChanged.connect(self.FileNameLineEditChanged)
         self.saveFileLayout.addWidget(self.fileNameLineEdit)
 
         self.saveFileLayout.addWidget(QLabel("Save Directory: "))
@@ -211,35 +253,39 @@ class MayaToUEWidget(MayaWindow):
         self.saveDirLineEdit.setEnabled(False)
         self.saveFileLayout.addWidget(self.saveDirLineEdit)
 
-        self.pickDirBtn = QPushButton("...")
-        self.pickDirBtn.clicked.connect(self.pickDirBtnClicked)
+        self.pickDirBtn= QPushButton("...")
+        self.pickDirBtn.clicked.connect(self.PickDirBtnClicked)
         self.saveFileLayout.addWidget(self.pickDirBtn)
 
         self.savePreviewLabel = QLabel("")
         self.masterLayout.addWidget(self.savePreviewLabel)
 
+        sendToUEBtn = QPushButton("Send to Unreal")
+        sendToUEBtn.clicked.connect(self.mayaToUE.SendToUnreal)
+        self.masterLayout.addWidget(sendToUEBtn)
+
     def UpdateSavePreivewLabel(self):
-        previewText = self.mayaToUE.GetSkelatalMeshSavePath()
-        for AnimClip in self.mayaToUE.animations:
-            animSavePath = self.mayaToUE.GetSavePathForAnimClip(AnimClip)
+        previewText = self.mayaToUE.GetSkeletalMeshSavePath()
+        for animClip in self.mayaToUE.animations:
+            animSavePath = self.mayaToUE.GetSavePathForAnimClip(animClip)
             previewText += "\n" + animSavePath
-            self.UpdateSavePreivewLabel()
 
         self.savePreviewLabel.setText(previewText)
 
-
-    def pickDirBtnClicked(self):
+    def PickDirBtnClicked(self):
         pickedPath = QFileDialog().getExistingDirectory()
         self.saveDirLineEdit.setText(pickedPath)
         self.mayaToUE.saveDir = pickedPath
         self.UpdateSavePreivewLabel()
 
-    def fileNameLineEditChange(self, newVal):
+
+    def FileNameLineEditChanged(self, newVal):
         self.mayaToUE.fileName = newVal
         self.UpdateSavePreivewLabel()
 
+
     @TryAction
-    def addAnimEntryBtnClicked(self):
+    def AddAnimEntryBtnClicked(self):
         newAnimClip = self.mayaToUE.AddNewAnimClip()
         newAnimClipWidget = AnimClipWidget(newAnimClip)
         newAnimClipWidget.animClipRemoved.connect(self.AnimationClipRemoved)
@@ -257,18 +303,17 @@ class MayaToUEWidget(MayaWindow):
         self.mayaToUE.AddSelectedMeshes()
         self.meshList.clear()
         self.meshList.addItems(self.mayaToUE.models)
-        self.UpdateSavePreivewLabel()
+
 
     @TryAction
     def AddRootJntBtnClicked(self):
-        self.mayaToUE.AddRootJnt()
-        self.rootjntText.setText(self.mayaToUE.rootJnt)
-        self.UpdateSavePreivewLabel()
-        
+        self.mayaToUE.AddRootJoint() 
+        self.rootJntText.setText(self.mayaToUE.rootJnt)
+
     @TryAction
-    def setSelectedAsRootJntBtnClicked(self):
-            self.mayaToUE.setSelectedJntAsRoot
-            self.rootjntText.setText(self.mayaToUE.rootJnt)
-            self.UpdateSavePreivewLabel()
+    def SetSelectedAsRootJntBtnClicked(self):
+        self.mayaToUE.SetSelectedJointAsRoot()
+        self.rootJntText.setText(self.mayaToUE.rootJnt)
+
 
 MayaToUEWidget().show()
