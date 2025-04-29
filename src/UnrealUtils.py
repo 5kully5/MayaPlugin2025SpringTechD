@@ -58,6 +58,6 @@ def ImportMeshAndAnimations(meshPath, animDir):
 
 
 
-ImportMeshAndAnimations("")
+#ImportMeshAndAnimations("")
 
 #what ever you names your file locations
