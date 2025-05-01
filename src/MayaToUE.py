@@ -51,6 +51,12 @@ class MayaToUE:
         mc.FBXExportSmoothingGroups("-v", True)
         mc.FBXExportInputConnections("-v", False)
 
+        remoteExec = remote_execution.RemoteExecution
+        remoteExec.start()
+        remoteExec.open_command_connection(remoteExec.remote_nodes)
+        remote_execution.run_commend(command)
+        remote_execution.stop()
+
         # -f means the file name, -s means export selection, -ea means export animation
         mc.FBXExport('-f', skeletalMeshExportPath, '-s', True, '-ea', False)
 

@@ -1,10 +1,10 @@
 import sys
 
-pjrPth = "D:/Profile Redirect/culwell/Desktop/PythonCode/src"
-moduleDir = "D:/ProfLees"
+pjrPath = "D:/Profile Redirect/culwell/Desktop/PythonCode/src"
+moduleDir = "D:/Profile Redirect/culwell/Desktop"
 
-if pjrPth not in sys.path:
-    sys.path.append(pjrPth)
+if pjrPath not in sys.path:
+    sys.path.append(pjrPath)
 
 if moduleDir not in sys.path:
     sys.path.append(moduleDir)

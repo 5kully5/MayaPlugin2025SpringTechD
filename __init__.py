@@ -1,7 +1,7 @@
 import os
 import sys
 
-initFilePath = os.path.adspath(__file__)
+initFilePath = os.path.abspath(__file__)
 pluginDir = os.path.dirname(initFilePath)
 srcDir = os.path.join(pluginDir, "src")
 unrealSDKDir = os.path.join(pluginDir, "vendor", "unrealSDK")
